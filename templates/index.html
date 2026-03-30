@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cross-Selling Zuordnungs-Tool</title>
+    <style>
+        /* ============================================ */
+        /* RESET & BASE                                 */
+        /* ============================================ */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: #f0f2f5;
+            color: #1a1a2e;
+            line-height: 1.5;
+            min-height: 100vh;
+        }
+
+        /* ============================================ */
+        /* LAYOUT                                       */
+        /* ============================================ */
+        .app-container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 24px 20px 60px;
+        }
+
+        /* ============================================ */
+        /* HEADER                                       */
+        /* ============================================ */
+        .header {
+            background: linear-gradient(135deg, #1a365d 0%, #2b6cb0 100%);
+            color: #fff;
+            padding: 32px 36px;
+            border-radius: 16px;
+            margin-bottom: 32px;
+            box-shadow: 0 4px 24px rgba(26,54,93,.18);
+        }
+        .header h1 { font-size: 1.65em; font-weight: 700; margin-bottom: 6px; }
+        .header p  { color: rgba(255,255,255,.82); font-size: .95em; }
+
+        /* ============================================ */
+        /* WORKFLOW STEPPER                              */
+        /* ============================================ */
+        .step-section {
+            position: relative;
+            margin-bottom: 0;
+            padding-left: 48px;
+        }
+        .step-section::before {
+            content: '';
+            position: absolute;
+            left: 19px;
+            top: 40px;
+            bottom: -32px;
+            width: 3px;
+            background: #cbd5e0;
+        }
+        .step-section:last-of-type::before { display: none; }
+
+        .step-badge {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #2b6cb0;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 1.05em;
+            box-shadow: 0 2px 8px rgba(43,108,176,.25);
+            z-index: 1;
+        }
+        .step-badge.done { background: #38a169; }
+
+        .step-header {
+            display: flex;
+            align-items: center;
+            min-height: 40px;
+            margin-bottom: 12px;
+        }
+        .step-header h2 {
+            font-size: 1.12em;
+            font-weight: 600;
+            color: #1a365d;
+        }
+        .step-header .step-desc {
+            font-size: .85em;
+            color: #718096;
+            margin-left: 12px;
+        }
+
+        /* ============================================ */
+        /* CARD                                         */
+        /* ============================================ */
+        .card {
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 32px;
+            box-shadow: 0 1px 4px rgba(0,0,0,.04);
+        }
+
+        /* ============================================ */
+        /* STATUS PILLS                                 */
+        /* ============================================ */
+        .status-row {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+        .status-pill {
+            flex: 1;
+            min-width: 220px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 18px;
+            border-radius: 10px;
+            background: #f7fafc;
+            border: 1px solid #e2e8f0;
+        }
+        .status-pill .icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2em;
+            flex-shrink: 0;
+        }
+        .status-pill .icon.ok   { background: #c6f6d5; color: #22543d; }
+        .status-pill .icon.warn { background: #fefcbf; color: #744210; }
+        .status-pill .icon.err  { background: #fed7d7; color: #742a2a; }
+        .status-pill .text strong { display: block; font-size: .82em; color: #4a5568; text-transform: uppercase; letter-spacing: .3px; }
+        .status-pill .text span   { font-size: .88em; color: #2d3748; }
+
+        /* ============================================ */
+        /* UPLOAD AREA                                  */
+        /* ============================================ */
+        .upload-zone {
+            border: 2px dashed #cbd5e0;
+            border-radius: 12px;
+            padding: 36px 24px;
+            text-align: center;
+            cursor: pointer;
+            transition: all .2s;
+            background: #f7fafc;
+            position: relative;
+        }
+        .upload-zone:hover, .upload-zone.dragover {
+            border-color: #2b6cb0;
+            background: #ebf8ff;
+        }
+        .upload-zone input[type=file] {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            cursor: pointer;
+        }
+        .upload-zone .upload-icon { font-size: 2em; margin-bottom: 8px; color: #a0aec0; }
+        .upload-zone p { color: #718096; font-size: .9em; }
+        .upload-zone .filename {
+            margin-top: 8px;
+            font-weight: 600;
+            color: #2b6cb0;
+            display: none;
+        }
+        .upload-zone.has-file .filename { display: block; }
+        .upload-zone.has-file .upload-icon { color: #38a169; }
+
+        /* ============================================ */
+        /* ZUBEHOER TOGGLE                              */
+        /* ============================================ */
+        .optional-toggle {
+            margin-top: 16px;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 14px;
+        }
+        .optional-toggle summary {
+            cursor: pointer;
+            font-size: .88em;
+            color: #4a5568;
+            user-select: none;
+        }
+        .optional-toggle summary:hover { color: #2b6cb0; }
+        .optional-toggle .inner { padding-top: 12px; }
+
+        /* ============================================ */
+        /* SETTINGS ROW                                 */
+        /* ============================================ */
+        .settings-row {
+            display: flex;
+            gap: 16px;
+            align-items: end;
+            margin-top: 16px;
+            flex-wrap: wrap;
+        }
+        .setting-field label {
+            display: block;
+            font-size: .82em;
+            color: #4a5568;
+            margin-bottom: 4px;
+            font-weight: 500;
+        }
+        .setting-field input[type=number] {
+            width: 100px;
+            padding: 8px 12px;
+            border: 1px solid #cbd5e0;
+            border-radius: 8px;
+            font-size: .95em;
+        }
+
+        /* ============================================ */
+        /* BUTTONS                                      */
+        /* ============================================ */
+        .btn-primary {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 32px;
+            background: #2b6cb0;
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background .2s, transform .1s;
+            margin-top: 16px;
+        }
+        .btn-primary:hover { background: #2c5282; }
+        .btn-primary:active { transform: scale(.98); }
+        .btn-primary:disabled {
+            background: #a0aec0;
+            cursor: not-allowed;
+        }
+        .btn-sm {
+            padding: 4px 12px;
+            font-size: .78em;
+            border-radius: 6px;
+            border: 1px solid #cbd5e0;
+            background: #fff;
+            cursor: pointer;
+            color: #4a5568;
+            font-weight: 500;
+            transition: all .15s;
+        }
+        .btn-sm:hover { background: #edf2f7; border-color: #a0aec0; }
+        .btn-download {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 24px;
+            background: #38a169;
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            font-size: .95em;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            transition: background .2s;
+        }
+        .btn-download:hover { background: #2f855a; }
+
+        /* ============================================ */
+        /* PROGRESS BAR                                 */
+        /* ============================================ */
+        .progress-container {
+            display: none;
+            margin-top: 8px;
+        }
+        .progress-container.active { display: block; }
+
+        .progress-bar-wrap {
+            width: 100%;
+            height: 28px;
+            background: #e2e8f0;
+            border-radius: 14px;
+            overflow: hidden;
+            position: relative;
+        }
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #2b6cb0, #4299e1);
+            border-radius: 14px;
+            width: 0%;
+            transition: width .35s ease;
+            position: relative;
+        }
+        .progress-bar-fill::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: linear-gradient(
+                90deg,
+                transparent 0%,
+                rgba(255,255,255,.25) 50%,
+                transparent 100%
+            );
+            animation: shimmer 1.8s infinite;
+        }
+        @keyframes shimmer {
+            0%   { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+        .progress-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 8px;
+            font-size: .88em;
+        }
+        .progress-info .pct { font-weight: 700; color: #2b6cb0; font-size: 1.05em; }
+        .progress-info .msg { color: #718096; }
+
+        /* ============================================ */
+        /* RESULTS                                      */
+        /* ============================================ */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        .stat-card {
+            text-align: center;
+            padding: 16px 12px;
+            background: #f7fafc;
+            border-radius: 10px;
+            border: 1px solid #e2e8f0;
+        }
+        .stat-card .stat-value { font-size: 1.6em; font-weight: 700; color: #1a365d; }
+        .stat-card .stat-label { font-size: .78em; color: #718096; text-transform: uppercase; letter-spacing: .3px; margin-top: 2px; }
+        .stat-card.green .stat-value { color: #22543d; }
+        .stat-card.orange .stat-value { color: #9c4221; }
+
+        .results-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            font-size: .88em;
+        }
+        .results-table thead th {
+            background: #edf2f7;
+            padding: 10px 12px;
+            text-align: left;
+            font-weight: 600;
+            color: #4a5568;
+            font-size: .82em;
+            text-transform: uppercase;
+            letter-spacing: .3px;
+            border-bottom: 2px solid #e2e8f0;
+            position: sticky;
+            top: 0;
+            z-index: 2;
+        }
+        .results-table thead th:first-child { border-radius: 8px 0 0 0; }
+        .results-table thead th:last-child  { border-radius: 0 8px 0 0; }
+        .results-table tbody tr { transition: background .12s; }
+        .results-table tbody tr:hover { background: #f7fafc; }
+        .results-table tbody td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #edf2f7;
+            vertical-align: top;
+        }
+        .results-table tbody td:first-child {
+            font-weight: 600;
+            color: #4a5568;
+            text-align: center;
+            width: 40px;
+        }
+        .cs-list { color: #4a5568; line-height: 1.45; }
+        .cs-none { color: #a0aec0; font-style: italic; }
+        .hersteller-tag {
+            font-size: .78em;
+            background: #ebf8ff;
+            color: #2b6cb0;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-weight: 500;
+            display: inline-block;
+            margin-bottom: 2px;
+        }
+        .recalc-cell { text-align: center; width: 60px; }
+
+        /* Toast for recalc */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: #1a365d;
+            color: #fff;
+            padding: 12px 24px;
+            border-radius: 10px;
+            font-size: .9em;
+            box-shadow: 0 4px 16px rgba(0,0,0,.18);
+            transform: translateY(80px);
+            opacity: 0;
+            transition: all .3s;
+            z-index: 100;
+        }
+        .toast.show { transform: translateY(0); opacity: 1; }
+
+        /* Hidden */
+        .hidden { display: none !important; }
+
+        /* Download row */
+        .download-row {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        /* ============================================ */
+        /* RESPONSIVE                                   */
+        /* ============================================ */
+        @media (max-width: 700px) {
+            .app-container { padding: 12px 8px 40px; }
+            .header { padding: 20px; border-radius: 12px; }
+            .header h1 { font-size: 1.3em; }
+            .card { padding: 16px; }
+            .step-section { padding-left: 40px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- HEADER -->
+        <div class="header">
+            <h1>Cross-Selling Zuordnungs-Tool</h1>
+            <p>Automatische Zuordnung von Zubehör-Artikeln zu Produkten basierend auf Kategorie, Marke, Durchmesser und Farbe.</p>
+        </div>
+
+        <!-- ================================================ -->
+        <!-- SCHRITT 1: Datenquellen                           -->
+        <!-- ================================================ -->
+        <div class="step-section" id="step1">
+            <div class="step-badge" id="badge1">1</div>
+            <div class="step-header">
+                <h2>Datenquellen prüfen</h2>
+                <span class="step-desc">Automatisch geladene Stammdaten</span>
+            </div>
+            <div class="card">
+                <div class="status-row" id="statusRow">
+                    <!-- Wird dynamisch gefüllt -->
+                </div>
+                <details class="optional-toggle">
+                    <summary>Neue Zubehör-Datei hochladen (optional)</summary>
+                    <div class="inner">
+                        <div class="upload-zone" id="zubehoerZone">
+                            <input type="file" accept=".csv" id="zubehoerFile">
+                            <div class="upload-icon">&#128230;</div>
+                            <p>CSV-Datei hier ablegen oder klicken</p>
+                            <div class="filename" id="zubehoerFilename"></div>
+                        </div>
+                    </div>
+                </details>
+            </div>
+        </div>
+
+        <!-- ================================================ -->
+        <!-- SCHRITT 2: Upload & Starten                       -->
+        <!-- ================================================ -->
+        <div class="step-section" id="step2">
+            <div class="step-badge" id="badge2">2</div>
+            <div class="step-header">
+                <h2>Produktliste hochladen & starten</h2>
+                <span class="step-desc">Excel-Datei (.xlsx) mit den Produkten</span>
+            </div>
+            <div class="card">
+                <div class="upload-zone" id="produktZone">
+                    <input type="file" accept=".xlsx" id="produktFile">
+                    <div class="upload-icon">&#128203;</div>
+                    <p>Produktliste (.xlsx) hier ablegen oder klicken zum Auswählen</p>
+                    <div class="filename" id="produktFilename"></div>
+                </div>
+                <div class="settings-row">
+                    <div class="setting-field">
+                        <label for="parallelCount">Parallele Verarbeitung</label>
+                        <input type="number" id="parallelCount" value="10" min="1" max="50" step="1">
+                    </div>
+                    <button class="btn-primary" id="processBtn" disabled>
+                        <span>&#9654;</span> Cross-Selling berechnen
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================================================ -->
+        <!-- SCHRITT 3: Ergebnisse                             -->
+        <!-- ================================================ -->
+        <div class="step-section" id="step3">
+            <div class="step-badge" id="badge3">3</div>
+            <div class="step-header">
+                <h2>Ergebnisse</h2>
+                <span class="step-desc">Fortschritt und Zuordnungs-Ergebnis</span>
+            </div>
+            <div class="card">
+                <!-- Fortschrittsanzeige -->
+                <div class="progress-container" id="progressContainer">
+                    <div class="progress-bar-wrap">
+                        <div class="progress-bar-fill" id="progressFill"></div>
+                    </div>
+                    <div class="progress-info">
+                        <span class="msg" id="progressMsg">Starte Verarbeitung...</span>
+                        <span class="pct" id="progressPct">0%</span>
+                    </div>
+                </div>
+
+                <!-- Platzhalter -->
+                <div id="resultPlaceholder" style="text-align:center; padding: 24px 0; color: #a0aec0;">
+                    Hier werden die Ergebnisse angezeigt, sobald eine Produktliste verarbeitet wurde.
+                </div>
+
+                <!-- Ergebnisse (zunächst hidden) -->
+                <div id="resultSection" class="hidden">
+                    <div class="stats-grid" id="statsGrid"></div>
+                    <div class="download-row" id="downloadRow"></div>
+                    <div style="overflow-x:auto;">
+                        <table class="results-table">
+                            <thead>
+                                <tr>
+                                    <th>Nr.</th>
+                                    <th>Artikelnr.</th>
+                                    <th>Produkt</th>
+                                    <th>Cross-Selling Artikel</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody id="resultsBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <script>
+    // ====================================================
+    // STATE
+    // ====================================================
+    let currentJobId = null;
+
+    // ====================================================
+    // INIT: Status laden
+    // ====================================================
+    document.addEventListener('DOMContentLoaded', () => {
+        loadStatus();
+        setupUploadZones();
+    });
+
+    async function loadStatus() {
+        const res = await fetch('/api/status');
+        const data = await res.json();
+        renderStatus(data);
+    }
+
+    function renderStatus(data) {
+        const row = document.getElementById('statusRow');
+        const z = data.zubehoer;
+        const k = data.kriterien;
+
+        row.innerHTML = `
+            <div class="status-pill">
+                <div class="icon ${z.loaded ? 'ok' : 'err'}">${z.loaded ? '&#10003;' : '&#10007;'}</div>
+                <div class="text">
+                    <strong>Zubehör-Datenbank</strong>
+                    <span>${escHtml(z.status)}</span>
+                </div>
+            </div>
+            <div class="status-pill">
+                <div class="icon ${k.loaded ? 'ok' : 'err'}">${k.loaded ? '&#10003;' : '&#10007;'}</div>
+                <div class="text">
+                    <strong>Kriterien-Datei</strong>
+                    <span>${escHtml(k.status)}</span>
+                </div>
+            </div>
+        `;
+
+        if (z.loaded && k.loaded) {
+            document.getElementById('badge1').classList.add('done');
+        }
+    }
+
+    // ====================================================
+    // UPLOAD ZONES
+    // ====================================================
+    function setupUploadZones() {
+        // Zubehoer upload
+        const zubehoerFile = document.getElementById('zubehoerFile');
+        const zubehoerZone = document.getElementById('zubehoerZone');
+        zubehoerFile.addEventListener('change', async (e) => {
+            if (!e.target.files.length) return;
+            const file = e.target.files[0];
+            document.getElementById('zubehoerFilename').textContent = file.name;
+            zubehoerZone.classList.add('has-file');
+
+            const fd = new FormData();
+            fd.append('file', file);
+            const res = await fetch('/api/upload-zubehoer', { method: 'POST', body: fd });
+            const data = await res.json();
+            renderStatus({ zubehoer: data.zubehoer, kriterien: { loaded: true, status: '' } });
+            loadStatus(); // full refresh
+            showToast('Zubehör-Datenbank aktualisiert');
+        });
+
+        // Produkt upload
+        const produktFile = document.getElementById('produktFile');
+        const produktZone = document.getElementById('produktZone');
+        produktFile.addEventListener('change', (e) => {
+            if (!e.target.files.length) return;
+            document.getElementById('produktFilename').textContent = e.target.files[0].name;
+            produktZone.classList.add('has-file');
+            document.getElementById('processBtn').disabled = false;
+        });
+
+        // Drag & Drop for both
+        [zubehoerZone, produktZone].forEach(zone => {
+            zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
+            zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+            zone.addEventListener('drop', e => {
+                e.preventDefault();
+                zone.classList.remove('dragover');
+                const input = zone.querySelector('input[type=file]');
+                input.files = e.dataTransfer.files;
+                input.dispatchEvent(new Event('change'));
+            });
+        });
+
+        // Process button
+        document.getElementById('processBtn').addEventListener('click', startProcessing);
+    }
+
+    // ====================================================
+    // PROCESSING
+    // ====================================================
+    async function startProcessing() {
+        const fileInput = document.getElementById('produktFile');
+        if (!fileInput.files.length) return;
+
+        const btn = document.getElementById('processBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<span>&#9203;</span> Wird verarbeitet...';
+
+        // Show progress, hide placeholder/results
+        const pc = document.getElementById('progressContainer');
+        pc.classList.add('active');
+        document.getElementById('resultPlaceholder').classList.add('hidden');
+        document.getElementById('resultSection').classList.add('hidden');
+        setProgress(0, 'Starte Verarbeitung...');
+
+        const fd = new FormData();
+        fd.append('file', fileInput.files[0]);
+        fd.append('parallel_count', document.getElementById('parallelCount').value);
+
+        try {
+            const res = await fetch('/api/process', { method: 'POST', body: fd });
+            const data = await res.json();
+
+            if (data.error) {
+                showToast('Fehler: ' + data.error);
+                resetProcessBtn();
+                return;
+            }
+
+            currentJobId = data.job_id;
+            listenProgress(data.job_id);
+        } catch (err) {
+            showToast('Fehler: ' + err.message);
+            resetProcessBtn();
+        }
+    }
+
+    function listenProgress(jobId) {
+        const evtSource = new EventSource('/api/progress/' + jobId);
+
+        evtSource.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            setProgress(data.progress, data.message);
+
+            if (data.status === 'done') {
+                evtSource.close();
+                renderResults(data.result);
+                resetProcessBtn();
+                document.getElementById('badge2').classList.add('done');
+                document.getElementById('badge3').classList.add('done');
+            } else if (data.status === 'error') {
+                evtSource.close();
+                showToast('Fehler: ' + (data.error || 'Unbekannter Fehler'));
+                resetProcessBtn();
+            }
+        };
+
+        evtSource.onerror = () => {
+            evtSource.close();
+            // Might just be the stream ending — check if we already have results
+        };
+    }
+
+    function setProgress(pct, msg) {
+        document.getElementById('progressFill').style.width = pct + '%';
+        document.getElementById('progressPct').textContent = pct + '%';
+        document.getElementById('progressMsg').textContent = msg;
+    }
+
+    function resetProcessBtn() {
+        const btn = document.getElementById('processBtn');
+        btn.disabled = false;
+        btn.innerHTML = '<span>&#9654;</span> Cross-Selling berechnen';
+    }
+
+    // ====================================================
+    // RESULTS
+    // ====================================================
+    function renderResults(result) {
+        // Hide progress shimmer
+        document.getElementById('progressFill').style.width = '100%';
+
+        // Stats
+        const total = result.total;
+        const withCs = result.with_cs;
+        const withoutCs = result.without_cs;
+        const pct = total > 0 ? Math.round(withCs / total * 100) : 0;
+
+        document.getElementById('statsGrid').innerHTML = `
+            <div class="stat-card">
+                <div class="stat-value">${total}</div>
+                <div class="stat-label">Produkte gesamt</div>
+            </div>
+            <div class="stat-card green">
+                <div class="stat-value">${withCs}</div>
+                <div class="stat-label">Mit Cross-Selling (${pct}%)</div>
+            </div>
+            <div class="stat-card orange">
+                <div class="stat-value">${withoutCs}</div>
+                <div class="stat-label">Ohne Zuordnung</div>
+            </div>
+        `;
+
+        // Download
+        document.getElementById('downloadRow').innerHTML = result.output_filename
+            ? `<a class="btn-download" href="/api/download/${encodeURIComponent(result.output_filename)}">&#128229; ${escHtml(result.output_filename)} herunterladen</a>`
+            : '';
+
+        // Table
+        const tbody = document.getElementById('resultsBody');
+        tbody.innerHTML = result.rows.map(row => {
+            const cs = row.cs_namen
+                ? `<span class="cs-list">${escHtml(row.cs_namen)}</span>`
+                : `<span class="cs-none">keine Zuordnung</span>`;
+            const herst = row.hersteller
+                ? `<span class="hersteller-tag">${escHtml(row.hersteller)}</span><br>`
+                : '';
+            return `
+                <tr id="row-${row.index}">
+                    <td>${row.nr}</td>
+                    <td>${escHtml(row.artikelnr)}</td>
+                    <td>${herst}${escHtml(row.name)}</td>
+                    <td id="cs-${row.index}">${cs}</td>
+                    <td class="recalc-cell">
+                        <button class="btn-sm" onclick="recalcRow(${row.index})" title="Neu berechnen">&#8635;</button>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+
+        document.getElementById('resultSection').classList.remove('hidden');
+    }
+
+    // ====================================================
+    // RECALC SINGLE ROW
+    // ====================================================
+    async function recalcRow(index) {
+        if (!currentJobId) return;
+
+        const btn = document.querySelector(`#row-${index} .btn-sm`);
+        btn.disabled = true;
+        btn.textContent = '...';
+
+        try {
+            const res = await fetch('/api/recalc', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ job_id: currentJobId, index: index }),
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                const cell = document.getElementById('cs-' + index);
+                cell.innerHTML = data.cs_namen
+                    ? `<span class="cs-list">${escHtml(data.cs_namen)}</span>`
+                    : `<span class="cs-none">keine Zuordnung</span>`;
+                showToast(`Produkt ${index + 1} neu berechnet: ${data.cs_count} CS-Artikel`);
+
+                // Update stats
+                const statsGrid = document.getElementById('statsGrid');
+                const total = parseInt(statsGrid.querySelector('.stat-card .stat-value').textContent);
+                const pct = total > 0 ? Math.round(data.with_cs / total * 100) : 0;
+                statsGrid.children[1].querySelector('.stat-value').textContent = data.with_cs;
+                statsGrid.children[1].querySelector('.stat-label').textContent = `Mit Cross-Selling (${pct}%)`;
+                statsGrid.children[2].querySelector('.stat-value').textContent = data.without_cs;
+            } else {
+                showToast('Fehler: ' + (data.error || ''));
+            }
+        } catch (err) {
+            showToast('Fehler: ' + err.message);
+        } finally {
+            btn.disabled = false;
+            btn.textContent = '\u21BB';
+        }
+    }
+
+    // ====================================================
+    // HELPERS
+    // ====================================================
+    function escHtml(str) {
+        if (!str) return '';
+        return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function showToast(msg) {
+        const t = document.getElementById('toast');
+        t.textContent = msg;
+        t.classList.add('show');
+        setTimeout(() => t.classList.remove('show'), 3000);
+    }
+    </script>
+</body>
+</html>
